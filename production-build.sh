@@ -24,8 +24,8 @@ node - <<'NODE'
   const root = process.cwd();
   const dist = path.join(root, 'dist');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+
   pkg.main = 'extension.js';
-  
   delete pkg.scripts;
   delete pkg.devDependencies;
 
