@@ -9,6 +9,13 @@ echo "[build] Running production bundle (esbuild + obfuscation)"
 cd "$ROOT"
 npm run esbuild
 
+echo "[assets] Generating PNGs from SVGs"
+if [[ -d node_modules/@resvg/resvg-js ]]; then
+  npm run assets:png
+else
+  echo "[assets] @resvg/resvg-js not installed; skipping PNG generation (placeholders may be used)"
+fi
+
 echo "[dist] Preparing clean dist folder"
 rm -rf dist
 mkdir -p dist
@@ -77,22 +84,6 @@ if [[ -f dist/README.md ]]; then
   sed -i '' -e 's/images\/banner.svg/images\/banner.png/g' dist/README.md 2>/dev/null || \
   sed -i -e 's/images\/banner.svg/images\/banner.png/g' dist/README.md
 fi
-
-# Create a .vscodeignore in dist to avoid warnings and keep package lean
-cat > dist/.vscodeignore <<'VSIX'
-# Exclude everything by default
-**
-
-# Include only the whitelisted artifacts
-!extension.js
-!package.json
-!README.md
-!LICENSE.txt
-!images/icon.svg
-!images/banner.svg
-!images/icon.png
-!images/banner.png
-VSIX
 
 echo "[vsce] Packaging from dist"
 cd dist

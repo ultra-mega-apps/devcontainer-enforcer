@@ -63,28 +63,32 @@ export async function activate(_: vscode.ExtensionContext) {
   const root = folders[0].uri.fsPath;
   const found = await findAncestorDotDevcontainer(root);
 
-  if (found) {
-    // Non-blocking nudge; do not auto-open.
-    vscode.window.showInformationMessage(
-      `Ancestor .devcontainer found at: ${found}. Use "Dev Containers: Reopen in Container".`
-    );
-    return;
-  }
+  // Show a blocking modal in both cases (found or not found), with three options.
+  const CLOSE = "Close VS Code (default)";
+  const DISABLE_ONCE = "Disable once";
+  const CANCEL = "Cancel";
 
-  // No ancestor .devcontainer: modal with A/B (Close | Disable once with typed confirmation).
-  const A = "Close VS Code (default)";
-  const B = "Disable once";
+  const message = found
+    ? [
+        `A .devcontainer was detected at: ${found}.`,
+        'Please use "Dev Containers: Reopen in Container" to open this project safely.',
+        "Choose an action:",
+      ].join("\n")
+    : [
+        "No .devcontainer found in this workspace or any ancestor.",
+        "Define one at: <repo>/.devcontainer or <org>/.devcontainer.",
+        "Choose an action:",
+      ].join("\n");
+
   const choice = await vscode.window.showErrorMessage(
-    [
-      "No .devcontainer found in this workspace or any ancestor.",
-      "Define one at: <repo>/.devcontainer or <org>/.devcontainer.",
-    ].join("\n"),
+    message,
     { modal: true },
-    A,
-    B
+    CLOSE,
+    DISABLE_ONCE,
+    CANCEL
   );
 
-  if (choice === B) {
+  if (choice === DISABLE_ONCE) {
     const typed = await vscode.window.showInputBox({
       title: "Confirm opening outside Dev Containers",
       prompt: `Type exactly: ${CONFIRM_PHRASE}`,
@@ -105,6 +109,12 @@ export async function activate(_: vscode.ExtensionContext) {
     return;
   }
 
+  if (choice === CANCEL) {
+    // Do nothing; user stays in the host for this session.
+    return;
+  }
+
+  // Default: close VS Code.
   await vscode.commands.executeCommand("workbench.action.closeWindow");
 }
 
