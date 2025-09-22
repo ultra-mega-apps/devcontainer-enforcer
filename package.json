@@ -1,0 +1,23 @@
+{
+  "name": "devcontainer-enforcer",
+  "displayName": "DevContainer Enforcer",
+  "description": "Alert-only guard for Dev Containers with ancestor .devcontainer lookup.",
+  "version": "0.1.0",
+  "publisher": "yourPublisherId",
+  "engines": { "vscode": "^1.90.0" },
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "categories": ["Other"],
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.5.4",
+    "@vscode/vsce": "^3.6.0"
+  }
+}
