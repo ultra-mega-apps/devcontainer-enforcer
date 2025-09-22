@@ -24,19 +24,23 @@
     "vscode"
   ],
   "scripts": {
-    "vscode:prepublish": "npm run build",
-    "build": "tsc -p .",
-    "watch": "tsc -w -p .",
+    "vscode:prepublish": "npm run esbuild",
+    "typecheck": "tsc -p . --noEmit",
+    "build": "npm run typecheck && node esbuild.config.mjs",
+    "esbuild": "npm run typecheck && node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
     "package": "vsce package"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
     "@types/vscode": "^1.90.0",
-    "typescript": "^5.5.4",
-    "@vscode/vsce": "^3.6.0"
+    "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.25.10",
+    "javascript-obfuscator": "^4.1.0",
+    "typescript": "^5.5.4"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ultra-mega-apps/devcontainer-enforcer.git"
+    "url": "https://github.com/ultra-mega-apps/devcontainer-enforcer-free.git"
   }
 }
