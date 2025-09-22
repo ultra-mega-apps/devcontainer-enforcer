@@ -23,21 +23,6 @@
     "enforcer",
     "vscode"
   ],
-  "scripts": {
-    "vscode:prepublish": "npm run esbuild",
-    "typecheck": "tsc -p . --noEmit",
-    "esbuild": "npm run typecheck && node esbuild.mjs",
-    "dev": "tsc -w -p . --noEmit false --outDir out --sourceMap true",
-    "package": "bash ./production-build.sh"
-  },
-  "devDependencies": {
-    "@types/node": "^20.14.10",
-    "@types/vscode": "^1.90.0",
-    "@vscode/vsce": "^3.6.0",
-    "esbuild": "^0.25.10",
-    "javascript-obfuscator": "^4.1.1",
-    "typescript": "^5.5.4"
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/ultra-mega-apps/devcontainer-enforcer-free.git"

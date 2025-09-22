@@ -1,4 +1,4 @@
-import { build } from "esbuild";
+import { build, context } from "esbuild";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,10 +27,12 @@ const options = {
   },
 };
 
-await build({
-  ...options,
-  watch,
-});
+if (watch) {
+  const ctx = await context(options);
+  await ctx.watch();
+} else {
+  await build(options);
+}
 
 if (!watch) {
   try {
