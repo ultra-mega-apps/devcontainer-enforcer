@@ -36,7 +36,6 @@ if (!watch) {
   try {
     const outFile = path.resolve(__dirname, "out/extension.js");
     const code = await fs.readFile(outFile, "utf8");
-
     const obfuscated = JavaScriptObfuscator.obfuscate(code, {
       compact: true,
       controlFlowFlattening: true,
@@ -51,7 +50,6 @@ if (!watch) {
       stringArrayThreshold: 0.75,
       target: "node",
     }).getObfuscatedCode();
-
     await fs.writeFile(outFile, obfuscated, "utf8");
     console.log("[obfuscator] out/extension.js obfuscated");
   } catch (err) {
