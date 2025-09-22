@@ -26,9 +26,9 @@
   "scripts": {
     "vscode:prepublish": "npm run esbuild",
     "typecheck": "tsc -p . --noEmit",
-    "esbuild": "npm run typecheck && node esbuild.mjs",
-    "dev": "tsc -w -p . --sourceMap true",
-    "package": "vsce package"
+    "esbuild": "npm run typecheck && node esbuild.config.mjs",
+    "dev": "tsc -w -p . --noEmit false --outDir out --sourceMap true",
+    "package": "bash ./production-build.sh"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
