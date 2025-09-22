@@ -15,6 +15,10 @@
     "Other"
   ],
   "private": true,
+  "galleryBanner": {
+    "color": "#0ea5e9",
+    "theme": "dark"
+  },
   "license": "SEE LICENSE IN LICENSE.txt",
   "keywords": [
     "devcontainer",

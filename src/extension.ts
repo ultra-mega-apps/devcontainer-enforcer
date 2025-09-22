@@ -1,23 +1,32 @@
-import * as vscode from 'vscode';
-import { promises as fs } from 'fs';
-import * as path from 'path';
+import * as vscode from "vscode";
+import { promises as fs } from "fs";
+import * as path from "path";
 
-const DISABLE_ONCE_FLAG = 'devcontainerPoke.disabledOnce';
-const CONFIRM_PHRASE = 'open outside devcontainer';
+const CONFIRM_PHRASE = "open outside devcontainer";
+let disabledOnce = false; // in-memory for this window only
 
 async function exists(p: string): Promise<boolean> {
-  try { await fs.stat(p); return true; } catch { return false; }
+  try {
+    await fs.stat(p);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-async function findAncestorDotDevcontainer(startFsPath: string): Promise<string | null> {
+async function findAncestorDotDevcontainer(
+  startFsPath: string
+): Promise<string | null> {
   let cur = path.resolve(startFsPath);
   try {
     const st = await fs.stat(cur);
     if (!st.isDirectory()) cur = path.dirname(cur);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   for (;;) {
-    const candidate = path.join(cur, '.devcontainer');
+    const candidate = path.join(cur, ".devcontainer");
     if (await exists(candidate)) return candidate;
     const parent = path.dirname(cur);
     if (parent === cur) break;
@@ -27,12 +36,14 @@ async function findAncestorDotDevcontainer(startFsPath: string): Promise<string 
 }
 
 function inDevContainer(): boolean {
-  return vscode.env.remoteName === 'dev-container';
+  return vscode.env.remoteName === "dev-container";
 }
 
-function openedIsDotDevcontainer(folders: readonly vscode.WorkspaceFolder[] | undefined): boolean {
+function openedIsDotDevcontainer(
+  folders: readonly vscode.WorkspaceFolder[] | undefined
+): boolean {
   if (!folders || folders.length === 0) return false;
-  return path.basename(folders[0].uri.fsPath) === '.devcontainer';
+  return path.basename(folders[0].uri.fsPath) === ".devcontainer";
 }
 
 export async function activate(_: vscode.ExtensionContext) {
@@ -40,7 +51,7 @@ export async function activate(_: vscode.ExtensionContext) {
   if (inDevContainer()) return;
 
   // One-time local bypass for this window?
-  if (vscode.workspace.getConfiguration().get<boolean>(DISABLE_ONCE_FLAG, false)) return;
+  if (disabledOnce) return;
 
   const folders = vscode.workspace.workspaceFolders;
   // Minimal MVP: ignore empty/single-file windows
@@ -61,39 +72,40 @@ export async function activate(_: vscode.ExtensionContext) {
   }
 
   // No ancestor .devcontainer: modal with A/B (Close | Disable once with typed confirmation).
-  const A = 'Close VS Code (default)';
-  const B = 'Disable once';
+  const A = "Close VS Code (default)";
+  const B = "Disable once";
   const choice = await vscode.window.showErrorMessage(
     [
-      'No .devcontainer found in this workspace or any ancestor.',
-      'Define one at: <repo>/.devcontainer or <org>/.devcontainer.'
-    ].join('\n'),
+      "No .devcontainer found in this workspace or any ancestor.",
+      "Define one at: <repo>/.devcontainer or <org>/.devcontainer.",
+    ].join("\n"),
     { modal: true },
-    A, B
+    A,
+    B
   );
 
   if (choice === B) {
     const typed = await vscode.window.showInputBox({
-      title: 'Confirm opening outside Dev Containers',
+      title: "Confirm opening outside Dev Containers",
       prompt: `Type exactly: ${CONFIRM_PHRASE}`,
       placeHolder: CONFIRM_PHRASE,
       ignoreFocusOut: true,
-      value: ''
+      value: "",
     });
 
-    if ((typed || '').trim() === CONFIRM_PHRASE) {
-      await vscode.workspace.getConfiguration().update(
-        DISABLE_ONCE_FLAG, true, vscode.ConfigurationTarget.Workspace
+    if ((typed || "").trim() === CONFIRM_PHRASE) {
+      disabledOnce = true;
+      vscode.window.showWarningMessage(
+        "DevContainer Enforcer disabled for this window (once). Reopen to re-enable."
       );
-      vscode.window.showWarningMessage('DevContainer Enforcer disabled for this window (once). Reopen to re-enable.');
       return;
     }
 
-    await vscode.commands.executeCommand('workbench.action.closeWindow');
+    await vscode.commands.executeCommand("workbench.action.closeWindow");
     return;
   }
 
-  await vscode.commands.executeCommand('workbench.action.closeWindow');
+  await vscode.commands.executeCommand("workbench.action.closeWindow");
 }
 
 export function deactivate() {}
