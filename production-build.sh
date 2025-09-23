@@ -40,7 +40,7 @@ node - <<'NODE'
   const publisherArg = process.env.PUBLISHER_ARG || '';
   if (publisherArg) pkg.publisher = publisherArg;
   
-  pkg.icon = 'images/icon.png';
+  pkg.icon = 'images/icon.svg';
   delete pkg.scripts;
   delete pkg.devDependencies;
 
