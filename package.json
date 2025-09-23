@@ -3,7 +3,7 @@
   "displayName": "DevContainer Enforcer",
   "description": "Alert-only guard for Dev Containers with ancestor .devcontainer lookup.",
   "version": "0.1.0",
-  "publisher": "yourPublisherId",
+  "publisher": "UltraMegaApps",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -32,7 +32,8 @@
     "build": "tsc",
     "esbuild": "npm run typecheck && node esbuild.mjs",
     "typecheck": "tsc --noEmit",
-    "package": "bash ./production-build.sh UltraMegaApps"
+    "package": "bash ./production-build.sh UltraMegaApps",
+    "publish": "vsce publish minor"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
