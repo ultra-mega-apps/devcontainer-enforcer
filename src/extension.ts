@@ -1,42 +1,45 @@
 import * as vscode from "vscode";
 import { promises as fs } from "fs";
 import * as path from "path";
-let disabledOnce = false; // in-memory for this window only
 
-async function exists(p: string): Promise<boolean> {
+// In-memory flag to allow a single host session for this window.
+let disabledOnce = false;
+
+async function pathExists(fileSystemPath: string): Promise<boolean> {
   try {
-    await fs.stat(p);
+    await fs.stat(fileSystemPath);
     return true;
   } catch {
     return false;
   }
 }
 
-async function findAncestorDotDevcontainer(
-  startFsPath: string
+async function findNearestDevcontainer(
+  startFolderPath: string
 ): Promise<string | null> {
-  let cur = path.resolve(startFsPath);
+  let currentDirectory = path.resolve(startFolderPath);
   try {
-    const st = await fs.stat(cur);
-    if (!st.isDirectory()) cur = path.dirname(cur);
+    const stat = await fs.stat(currentDirectory);
+    if (!stat.isDirectory()) currentDirectory = path.dirname(currentDirectory);
   } catch {
     /* ignore */
   }
 
   for (;;) {
-    const candidate = path.join(cur, ".devcontainer");
-    if (await exists(candidate)) return candidate;
-    const parent = path.dirname(cur);
-    if (parent === cur) break;
-    cur = parent;
+    const devcontainerPath = path.join(currentDirectory, ".devcontainer");
+    if (await pathExists(devcontainerPath)) return devcontainerPath;
+    const parentDirectory = path.dirname(currentDirectory);
+    if (parentDirectory === currentDirectory) break;
+    currentDirectory = parentDirectory;
   }
   return null;
 }
 
-async function inDevContainer(): Promise<boolean> {
+async function isRunningInDevContainer(): Promise<boolean> {
   // Primary signal from VS Code Remote Host
-  const rn = vscode.env.remoteName;
-  if (rn === "dev-container" || rn === "codespaces") return true;
+  const remoteName = vscode.env.remoteName;
+  if (remoteName === "dev-container" || remoteName === "codespaces")
+    return true;
 
   // Common environment variables
   if (
@@ -52,44 +55,46 @@ async function inDevContainer(): Promise<boolean> {
 
   // Heuristics for containerized Linux
   try {
-    if (await exists("/.dockerenv")) return true;
+    if (await pathExists("/.dockerenv")) return true;
   } catch {}
   try {
-    const cgroup = await fs.readFile("/proc/1/cgroup", "utf8").catch(() => "");
-    if (/docker|containerd|kubepods|podman/i.test(cgroup)) return true;
+    const cgroupContent = await fs
+      .readFile("/proc/1/cgroup", "utf8")
+      .catch(() => "");
+    if (/docker|containerd|kubepods|podman/i.test(cgroupContent)) return true;
   } catch {}
 
   return false;
 }
 
-function openedIsDotDevcontainer(
-  folders: readonly vscode.WorkspaceFolder[] | undefined
+function isDevcontainerFolderOpened(
+  workspaceFolders: readonly vscode.WorkspaceFolder[] | undefined
 ): boolean {
-  if (!folders || folders.length === 0) return false;
-  return path.basename(folders[0].uri.fsPath) === ".devcontainer";
+  if (!workspaceFolders || workspaceFolders.length === 0) return false;
+  return path.basename(workspaceFolders[0].uri.fsPath) === ".devcontainer";
 }
 
-export async function activate(ctx: vscode.ExtensionContext) {
-  // No-op if already inside a dev container.
-  if (await inDevContainer()) return;
+export async function activate(context: vscode.ExtensionContext) {
+  // If already inside a dev container, do nothing.
+  if (await isRunningInDevContainer()) return;
 
   // One-time local bypass for this window?
   if (disabledOnce) return;
 
-  const folders = vscode.workspace.workspaceFolders;
-  // Minimal MVP: ignore empty/single-file windows
-  if (!folders || folders.length === 0) return;
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  // Ignore empty/single-file windows
+  if (!workspaceFolders || workspaceFolders.length === 0) return;
 
   // If the opened folder itself is ".devcontainer", do nothing.
-  if (openedIsDotDevcontainer(folders)) return;
+  if (isDevcontainerFolderOpened(workspaceFolders)) return;
 
-  const root = folders[0].uri.fsPath;
-  const found = await findAncestorDotDevcontainer(root);
+  const workspaceRoot = workspaceFolders[0].uri.fsPath;
+  const nearestDevcontainerPath = await findNearestDevcontainer(workspaceRoot);
 
   // Show a blocking modal. Only one explicit option; Cancel will be used for "open once" flow.
-  const CLOSE = "Close VS Code";
+  const closeVsCodeLabel = "Close VS Code";
 
-  const message = found
+  const message = nearestDevcontainerPath
     ? [
         "A Dev Container configuration was detected.",
         "Reopen in DevContainer.",
@@ -101,26 +106,26 @@ export async function activate(ctx: vscode.ExtensionContext) {
         "Choose an action:",
       ].join("\n");
 
-  const choice = await vscode.window.showErrorMessage(
+  const firstChoice = await vscode.window.showErrorMessage(
     message,
     { modal: true },
-    CLOSE
+    closeVsCodeLabel
   );
 
   // If user pressed the explicit Close button, close now; otherwise (Cancel/dismiss), ask to confirm open-once.
-  if (choice === CLOSE) {
+  if (firstChoice === closeVsCodeLabel) {
     await vscode.commands.executeCommand("workbench.action.closeWindow");
     return;
   }
 
-  // Cancel/dismiss path: confirmation to open once.
-  const OPEN_ONCE = "Keep VS Code Opened";
-  const confirm = await vscode.window.showWarningMessage(
+  // Cancel/dismiss path: confirmation to open once with exactly two buttons.
+  const keepOpenLabel = "Keep VS Code Opened";
+  const confirmationChoice = await vscode.window.showWarningMessage(
     "Open this project outside Dev Containers just once?",
     { modal: true },
-    OPEN_ONCE
+    keepOpenLabel
   );
-  if (confirm === OPEN_ONCE) {
+  if (confirmationChoice === keepOpenLabel) {
     disabledOnce = true;
     vscode.window.showWarningMessage(
       "DevContainer Enforcer disabled for this window (once). Reopen to re-enable."
