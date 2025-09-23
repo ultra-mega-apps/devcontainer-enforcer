@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="images/banner.svg" alt="DevContainer Enforcer banner" />
-</p>
-
 # DevContainer Enforcer
 
 Keep your team inside Dev Containers. This lightweight extension looks for an ancestor `.devcontainer` folder and:
