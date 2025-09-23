@@ -32,7 +32,7 @@
     "build": "tsc",
     "esbuild": "npm run typecheck && node esbuild.mjs",
     "typecheck": "tsc --noEmit",
-    "package": "bash ./production-build.sh"
+    "package": "bash ./production-build.sh UltraMegaApps"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
