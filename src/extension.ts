@@ -1,8 +1,6 @@
 import * as vscode from "vscode";
 import { promises as fs } from "fs";
 import * as path from "path";
-
-const CONFIRM_PHRASE = "open outside devcontainer";
 let disabledOnce = false; // in-memory for this window only
 
 async function exists(p: string): Promise<boolean> {
@@ -41,8 +39,16 @@ async function inDevContainer(): Promise<boolean> {
   if (rn === "dev-container" || rn === "codespaces") return true;
 
   // Common environment variables
-  if (process.env.GITHUB_CODESPACES === "true" || process.env.CODESPACES === "true") return true;
-  if (process.env.DEVCONTAINER === "true" || process.env.VSCODE_REMOTE_CONTAINERS === "true") return true;
+  if (
+    process.env.GITHUB_CODESPACES === "true" ||
+    process.env.CODESPACES === "true"
+  )
+    return true;
+  if (
+    process.env.DEVCONTAINER === "true" ||
+    process.env.VSCODE_REMOTE_CONTAINERS === "true"
+  )
+    return true;
 
   // Heuristics for containerized Linux
   try {
@@ -64,46 +70,6 @@ function openedIsDotDevcontainer(
 }
 
 export async function activate(ctx: vscode.ExtensionContext) {
-  // Register diagnostics command
-  const out = vscode.window.createOutputChannel("DevContainer Enforcer");
-  ctx.subscriptions.push(out);
-  ctx.subscriptions.push(
-    vscode.commands.registerCommand("devcontainer-enforcer.dumpDiagnostics", async () => {
-      try {
-        const rn = vscode.env.remoteName;
-        const env = process.env;
-        const hints: string[] = [];
-        const dockerenv = await exists("/.dockerenv");
-        let cgroup = "";
-        try { cgroup = await fs.readFile("/proc/1/cgroup", "utf8"); } catch {}
-        hints.push(`remoteName: ${rn ?? "(undefined)"}`);
-        hints.push(`GITHUB_CODESPACES: ${env.GITHUB_CODESPACES ?? ""}`);
-        hints.push(`CODESPACES: ${env.CODESPACES ?? ""}`);
-        hints.push(`DEVCONTAINER: ${env.DEVCONTAINER ?? ""}`);
-        hints.push(`VSCODE_REMOTE_CONTAINERS: ${env.VSCODE_REMOTE_CONTAINERS ?? ""}`);
-        hints.push(`/.dockerenv: ${dockerenv}`);
-        hints.push(`/proc/1/cgroup contains container keywords: ${/docker|containerd|kubepods|podman/i.test(cgroup)}`);
-
-        const text = [
-          "# DevContainer Enforcer Diagnostics",
-          "",
-          `inDevContainer(): ${(await inDevContainer())}`,
-          "",
-          "## Signals",
-          ...hints.map(h => `- ${h}`),
-          "",
-          "## Workspace",
-          `folders: ${(vscode.workspace.workspaceFolders || []).map(f => f.uri.fsPath).join(", ")}`,
-        ].join("\n");
-
-        const doc = await vscode.workspace.openTextDocument({ language: "markdown", content: text });
-        await vscode.window.showTextDocument(doc, { preview: false });
-      } catch (e: any) {
-        out.appendLine(`Diagnostics failed: ${e?.message || e}`);
-        vscode.window.showErrorMessage("Diagnostics failed. See 'DevContainer Enforcer' output.");
-      }
-    })
-  );
   // No-op if already inside a dev container.
   if (await inDevContainer()) return;
 
@@ -120,53 +86,49 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const root = folders[0].uri.fsPath;
   const found = await findAncestorDotDevcontainer(root);
 
-  // Show a blocking modal in both cases (found or not found), with three options.
+  // Show a blocking modal. Only one explicit option; Cancel will be used for "open once" flow.
   const CLOSE = "Close VS Code (default)";
-  const DISABLE_ONCE = "Disable once";
-  const CANCEL = "Cancel";
 
   const message = found
     ? [
-        `A .devcontainer was detected at: ${found}.`,
-        'Please use "Dev Containers: Reopen in Container" to open this project safely.',
+        "A Dev Container configuration was detected.",
+        "Reopen in DevContainer.",
         "Choose an action:",
       ].join("\n")
     : [
-        "No .devcontainer found in this workspace or any ancestor.",
-        "Define one at: <repo>/.devcontainer or <org>/.devcontainer.",
+        "No Dev Container configuration detected in this workspace or any ancestor.",
+        "You must develop in DevContainers.",
         "Choose an action:",
       ].join("\n");
 
   const choice = await vscode.window.showErrorMessage(
     message,
     { modal: true },
-    CLOSE,
-    DISABLE_ONCE,
-    CANCEL
+    CLOSE
   );
 
-  if (choice === DISABLE_ONCE) {
-    const typed = await vscode.window.showInputBox({
-      title: "Confirm opening outside Dev Containers",
-      prompt: `Type exactly: ${CONFIRM_PHRASE}`,
-      placeHolder: CONFIRM_PHRASE,
-      ignoreFocusOut: true,
-      value: "",
-    });
-
-    if ((typed || "").trim() === CONFIRM_PHRASE) {
-      disabledOnce = true;
-      vscode.window.showWarningMessage(
-        "DevContainer Enforcer disabled for this window (once). Reopen to re-enable."
-      );
-      return;
-    }
-
+  // If user pressed the explicit Close button, close now; otherwise (Cancel/dismiss), ask to confirm open-once.
+  if (choice === CLOSE) {
     await vscode.commands.executeCommand("workbench.action.closeWindow");
     return;
   }
 
-  // For Cancel or dismiss (undefined) or explicit Close: close VS Code to block host session.
+  // Cancel/dismiss path: confirmation to open once.
+  const OPEN_ONCE = "Open outside (once)";
+  const CLOSE2 = "Close VS Code";
+  const confirm = await vscode.window.showWarningMessage(
+    "Open this project outside Dev Containers just once?",
+    { modal: true },
+    OPEN_ONCE,
+    CLOSE2
+  );
+  if (confirm === OPEN_ONCE) {
+    disabledOnce = true;
+    vscode.window.showWarningMessage(
+      "DevContainer Enforcer disabled for this window (once). Reopen to re-enable."
+    );
+    return;
+  }
   await vscode.commands.executeCommand("workbench.action.closeWindow");
 }
 
