@@ -8,13 +8,6 @@ echo "[build] Running production bundle (esbuild + obfuscation)"
 cd "$ROOT"
 npm run esbuild
 
-echo "[assets] Generating PNGs from SVGs"
-if [[ -d node_modules/@resvg/resvg-js ]]; then
-  npm run assets:png
-else
-  echo "[assets] @resvg/resvg-js not installed; skipping PNG generation (placeholders may be used)"
-fi
-
 echo "[dist] Preparing clean dist folder"
 rm -rf dist
 mkdir -p dist
@@ -40,7 +33,7 @@ node - <<'NODE'
   const publisherArg = process.env.PUBLISHER_ARG || '';
   if (publisherArg) pkg.publisher = publisherArg;
   
-  pkg.icon = 'images/icon.svg';
+  pkg.icon = 'images/icon.png';
   delete pkg.scripts;
   delete pkg.devDependencies;
 
@@ -49,6 +42,7 @@ node - <<'NODE'
     'README.md',
     'LICENSE.txt',
     'images/icon.svg',
+    'images/icon.png',
     'images/banner.svg',
   ];
 
