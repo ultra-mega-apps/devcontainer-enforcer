@@ -87,7 +87,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const found = await findAncestorDotDevcontainer(root);
 
   // Show a blocking modal. Only one explicit option; Cancel will be used for "open once" flow.
-  const CLOSE = "Close VS Code (default)";
+  const CLOSE = "Close VS Code";
 
   const message = found
     ? [
@@ -114,13 +114,11 @@ export async function activate(ctx: vscode.ExtensionContext) {
   }
 
   // Cancel/dismiss path: confirmation to open once.
-  const OPEN_ONCE = "Open outside (once)";
-  const CLOSE2 = "Close VS Code";
+  const OPEN_ONCE = "Keep VS Code Opened";
   const confirm = await vscode.window.showWarningMessage(
     "Open this project outside Dev Containers just once?",
     { modal: true },
-    OPEN_ONCE,
-    CLOSE2
+    OPEN_ONCE
   );
   if (confirm === OPEN_ONCE) {
     disabledOnce = true;
