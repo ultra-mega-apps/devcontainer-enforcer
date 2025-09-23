@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import { promises as fs } from "fs";
 import * as path from "path";
 
-// In-memory flag to allow a single host session for this window.
 let disabledOnce = false;
 
 async function pathExists(fileSystemPath: string): Promise<boolean> {
@@ -36,12 +35,10 @@ async function findNearestDevcontainer(
 }
 
 async function isRunningInDevContainer(): Promise<boolean> {
-  // Primary signal from VS Code Remote Host
   const remoteName = vscode.env.remoteName;
   if (remoteName === "dev-container" || remoteName === "codespaces")
     return true;
 
-  // Common environment variables
   if (
     process.env.GITHUB_CODESPACES === "true" ||
     process.env.CODESPACES === "true"
@@ -53,7 +50,6 @@ async function isRunningInDevContainer(): Promise<boolean> {
   )
     return true;
 
-  // Heuristics for containerized Linux
   try {
     if (await pathExists("/.dockerenv")) return true;
   } catch {}
@@ -75,23 +71,17 @@ function isDevcontainerFolderOpened(
 }
 
 export async function activate(context: vscode.ExtensionContext) {
-  // If already inside a dev container, do nothing.
   if (await isRunningInDevContainer()) return;
-
-  // One-time local bypass for this window?
   if (disabledOnce) return;
 
   const workspaceFolders = vscode.workspace.workspaceFolders;
-  // Ignore empty/single-file windows
   if (!workspaceFolders || workspaceFolders.length === 0) return;
 
-  // If the opened folder itself is ".devcontainer", do nothing.
   if (isDevcontainerFolderOpened(workspaceFolders)) return;
 
   const workspaceRoot = workspaceFolders[0].uri.fsPath;
   const nearestDevcontainerPath = await findNearestDevcontainer(workspaceRoot);
 
-  // Show a blocking modal. Only one explicit option; Cancel will be used for "open once" flow.
   const closeVsCodeLabel = "Close VS Code";
 
   const message = nearestDevcontainerPath
@@ -112,19 +102,19 @@ export async function activate(context: vscode.ExtensionContext) {
     closeVsCodeLabel
   );
 
-  // If user pressed the explicit Close button, close now; otherwise (Cancel/dismiss), ask to confirm open-once.
   if (firstChoice === closeVsCodeLabel) {
     await vscode.commands.executeCommand("workbench.action.closeWindow");
     return;
   }
 
-  // Cancel/dismiss path: confirmation to open once with exactly two buttons.
   const keepOpenLabel = "Keep VS Code Opened";
+
   const confirmationChoice = await vscode.window.showWarningMessage(
     "Open this project outside Dev Containers just once?",
     { modal: true },
     keepOpenLabel
   );
+
   if (confirmationChoice === keepOpenLabel) {
     disabledOnce = true;
     vscode.window.showWarningMessage(
@@ -132,6 +122,7 @@ export async function activate(context: vscode.ExtensionContext) {
     );
     return;
   }
+
   await vscode.commands.executeCommand("workbench.action.closeWindow");
 }
 
