@@ -33,7 +33,7 @@
     "esbuild": "npm run typecheck && node esbuild.mjs",
     "typecheck": "tsc --noEmit",
     "package": "bash ./production-build.sh UltraMegaApps",
-    "publish": "vsce publish minor"
+    "publish": "cd dist && npx --yes @vscode/vsce publish minor"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
