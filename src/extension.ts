@@ -35,8 +35,25 @@ async function findAncestorDotDevcontainer(
   return null;
 }
 
-function inDevContainer(): boolean {
-  return vscode.env.remoteName === "dev-container";
+async function inDevContainer(): Promise<boolean> {
+  // Primary signal from VS Code Remote Host
+  const rn = vscode.env.remoteName;
+  if (rn === "dev-container" || rn === "codespaces") return true;
+
+  // Common environment variables
+  if (process.env.GITHUB_CODESPACES === "true" || process.env.CODESPACES === "true") return true;
+  if (process.env.DEVCONTAINER === "true" || process.env.VSCODE_REMOTE_CONTAINERS === "true") return true;
+
+  // Heuristics for containerized Linux
+  try {
+    if (await exists("/.dockerenv")) return true;
+  } catch {}
+  try {
+    const cgroup = await fs.readFile("/proc/1/cgroup", "utf8").catch(() => "");
+    if (/docker|containerd|kubepods|podman/i.test(cgroup)) return true;
+  } catch {}
+
+  return false;
 }
 
 function openedIsDotDevcontainer(
@@ -46,9 +63,49 @@ function openedIsDotDevcontainer(
   return path.basename(folders[0].uri.fsPath) === ".devcontainer";
 }
 
-export async function activate(_: vscode.ExtensionContext) {
+export async function activate(ctx: vscode.ExtensionContext) {
+  // Register diagnostics command
+  const out = vscode.window.createOutputChannel("DevContainer Enforcer");
+  ctx.subscriptions.push(out);
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("devcontainer-enforcer.dumpDiagnostics", async () => {
+      try {
+        const rn = vscode.env.remoteName;
+        const env = process.env;
+        const hints: string[] = [];
+        const dockerenv = await exists("/.dockerenv");
+        let cgroup = "";
+        try { cgroup = await fs.readFile("/proc/1/cgroup", "utf8"); } catch {}
+        hints.push(`remoteName: ${rn ?? "(undefined)"}`);
+        hints.push(`GITHUB_CODESPACES: ${env.GITHUB_CODESPACES ?? ""}`);
+        hints.push(`CODESPACES: ${env.CODESPACES ?? ""}`);
+        hints.push(`DEVCONTAINER: ${env.DEVCONTAINER ?? ""}`);
+        hints.push(`VSCODE_REMOTE_CONTAINERS: ${env.VSCODE_REMOTE_CONTAINERS ?? ""}`);
+        hints.push(`/.dockerenv: ${dockerenv}`);
+        hints.push(`/proc/1/cgroup contains container keywords: ${/docker|containerd|kubepods|podman/i.test(cgroup)}`);
+
+        const text = [
+          "# DevContainer Enforcer Diagnostics",
+          "",
+          `inDevContainer(): ${(await inDevContainer())}`,
+          "",
+          "## Signals",
+          ...hints.map(h => `- ${h}`),
+          "",
+          "## Workspace",
+          `folders: ${(vscode.workspace.workspaceFolders || []).map(f => f.uri.fsPath).join(", ")}`,
+        ].join("\n");
+
+        const doc = await vscode.workspace.openTextDocument({ language: "markdown", content: text });
+        await vscode.window.showTextDocument(doc, { preview: false });
+      } catch (e: any) {
+        out.appendLine(`Diagnostics failed: ${e?.message || e}`);
+        vscode.window.showErrorMessage("Diagnostics failed. See 'DevContainer Enforcer' output.");
+      }
+    })
+  );
   // No-op if already inside a dev container.
-  if (inDevContainer()) return;
+  if (await inDevContainer()) return;
 
   // One-time local bypass for this window?
   if (disabledOnce) return;
@@ -109,12 +166,7 @@ export async function activate(_: vscode.ExtensionContext) {
     return;
   }
 
-  if (choice === CANCEL) {
-    // Do nothing; user stays in the host for this session.
-    return;
-  }
-
-  // Default: close VS Code.
+  // For Cancel or dismiss (undefined) or explicit Close: close VS Code to block host session.
   await vscode.commands.executeCommand("workbench.action.closeWindow");
 }
 

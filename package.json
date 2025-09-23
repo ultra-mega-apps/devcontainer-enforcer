@@ -29,9 +29,10 @@
   ],
   "scripts": {
     "vscode:prepublish": "npm run esbuild",
-    "typecheck": "tsc -p . --noEmit",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
     "esbuild": "npm run typecheck && node esbuild.mjs",
-    "dev": "tsc -w -p . --noEmit false --outDir out --sourceMap true",
+    "dev": "tsc -w --noEmit false --outDir out --sourceMap true",
     "assets:png": "node scripts/svg-to-png.mjs",
     "package": "bash ./production-build.sh"
   },
