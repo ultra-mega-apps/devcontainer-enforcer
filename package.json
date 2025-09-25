@@ -2,7 +2,7 @@
   "name": "devcontainer-enforcer",
   "displayName": "DevContainer Enforcer",
   "description": "Alert-only guard for Dev Containers with ancestor .devcontainer lookup.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "UltraMegaApps",
   "engines": {
     "vscode": "^1.90.0"
