@@ -58,6 +58,8 @@ cp -f images/* dist/images/ 2>/dev/null || true
 
 echo "[vsce] Packaging from dist"
 cd dist
-npx --yes vsce package
+# the vsce publish by default already generate a package
+# this should be used only when we want a vsix without publishing
+# npx --yes vsce package
 
 echo "[done] VSIX created in dist/"
